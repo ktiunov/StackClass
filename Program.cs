@@ -5,7 +5,7 @@ namespace StackClass;
 
 internal class Program
 {
-    private const int BufferSizeInChars = 16;
+    private const int BufferSizeInChars = 128;
     private const int FirstFieldOffsetInChars = 4;
 
     static void Main(string[] args)
@@ -14,12 +14,14 @@ internal class Program
 
         //Try to call method  by reference
         heap.Reference.Test(); // Hello from Heap!
-        //stack.Reference.Test(); // AccessViolationException here
+        //stack.Reference.Test(); // AccessViolationException here 
     }
+
+
 
     unsafe static void Test(out TestClassContainer heapTest, out TestClassContainer stackTest)
     {
-        var objectOnHeap = new DerivedClass();
+        var objectOnHeap = new DerivedClass();       
 
         Span<char> buffer = stackalloc char[BufferSizeInChars]; // Allocate char buffer on stack
         CopyObjectToStack(objectOnHeap, ref buffer);
@@ -42,15 +44,16 @@ internal class Program
         stackTest = new(objectOnStack); // Save the reference to stack
     }
 
-    private static unsafe Span<char> CopyObjectToStack(DerivedClass objectOnHeap, ref Span<char> buffer)
+    private static unsafe void CopyObjectToStack(DerivedClass objectOnHeap, ref Span<char> buffer)
     {
+        int actualSizeInChars = TypeUtils.HeapSize(objectOnHeap) / sizeof(char);
+
         GCHandle gcHandle = GCHandle.Alloc(objectOnHeap, GCHandleType.WeakTrackResurrection); // Allocate the weak reference to objectOnHeap
         IntPtr thePointer = Marshal.ReadIntPtr(GCHandle.ToIntPtr(gcHandle)); // Read the pointer to objectOnHeap from the weak reference
-        Span<char> spanUnmanagedBuffer = new(thePointer.ToPointer(), BufferSizeInChars); // Cast the pointer to Span<char>
+        Span<char> spanUnmanagedBuffer = new(thePointer.ToPointer(), actualSizeInChars); // Cast the pointer to Span<char>
         gcHandle.Free();
 
         spanUnmanagedBuffer.CopyTo(buffer); // Copy objectOnHeap object to stack
-        return buffer;
     }
 }
 
